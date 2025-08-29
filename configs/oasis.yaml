@@ -1,0 +1,38 @@
+# configs/oasis.yaml
+
+dataset:
+  name: OASIS
+  path: data/oasis               # location of .nii.gz files
+  image_size: 256                # resize images
+  normalize: true
+  train_split: 0.8               # 80% train, 20% val
+  augmentations:
+    flip: true
+    rotation: 15                 # degrees
+    noise: gaussian
+
+dataloader:
+  batch_size: 8
+  num_workers: 4
+  shuffle: true
+
+model:
+  name: PatchNet                 # can be PatchNet, UNet, etc.
+  in_channels: 1
+  out_channels: 1
+  features: [32, 64, 128, 256]
+
+training:
+  epochs: 50
+  optimizer: adam
+  learning_rate: 0.0001
+  weight_decay: 0.00001
+  scheduler: step
+  step_size: 10
+  gamma: 0.5
+
+logging:
+  save_dir: outputs/oasis
+  log_interval: 10
+  checkpoint_interval: 5
+  seed: 42
