@@ -1,1 +1,7 @@
+torch
+torchvision
+matplotlib
+nibabel
+pyyaml
+tqdm
 
