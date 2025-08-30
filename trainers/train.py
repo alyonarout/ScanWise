@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.optim as optim
 import torch.nn as nn
-from datasets.oasis_dataset import OASISDataset
+from ScanWise.datasets.oasis_dataset import OASISDataset
 from models.patchnet import PatchNet
 
 class Trainer:
