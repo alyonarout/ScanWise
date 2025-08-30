@@ -1,25 +1,66 @@
-import os
-import nibabel as nib
-import torch
-import argparse
+# utils/preprocess.py
 
-def preprocess(input_dir, output_dir):
-    os.makedirs(output_dir, exist_ok=True)
-    for fname in os.listdir(input_dir):
-        if fname.endswith(".nii.gz"):
-            img = nib.load(os.path.join(input_dir, fname)).get_fdata()
-            # Normalize
-            img = (img - img.min()) / (img.max() - img.min() + 1e-8)
-            # Save slices
-            for i in range(img.shape[2]):
-                slice_ = torch.tensor(img[:, :, i], dtype=torch.float32).unsqueeze(0)
-                torch.save(slice_, os.path.join(output_dir, f"{fname}_{i}.pt"))
-    print("✅ Preprocessing complete!")
+import numpy as np
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input", required=True)
-    parser.add_argument("--output", required=True)
-    args = parser.parse_args()
-    preprocess(args.input, args.output)
+def normalize(volume):
+    """
+    Normalize MRI volume to zero mean, unit variance.
+    """
+    mean = np.mean(volume)
+    std = np.std(volume)
+    if std == 0:
+        return volume - mean
+    return (volume - mean) / std
 
+
+def fft2c(img):
+    """
+    Centered 2D FFT (convert image -> k-space).
+    """
+    return np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(img)))
+
+
+def ifft2c(kspace):
+    """
+    Centered 2D inverse FFT (convert k-space -> image).
+    """
+    return np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(kspace)))
+
+
+def extract_patches(volume, patch_size=64, stride=64):
+    """
+    Extract non-overlapping 2D patches from a 3D volume (H, W, D).
+    Returns: numpy array of patches (N, patch_size, patch_size).
+    """
+    h, w, d = volume.shape
+    patches = []
+
+    for z in range(d):
+        for i in range(0, h - patch_size + 1, stride):
+            for j in range(0, w - patch_size + 1, stride):
+                patch = volume[i:i+patch_size, j:j+patch_size, z]
+                patches.append(patch)
+
+    return np.array(patches)
+
+
+def preprocess_mri(volume, patch_size=64):
+    """
+    Full preprocessing pipeline:
+      1. Normalize MRI
+      2. Convert to k-space
+      3. Return reconstructed volume (magnitude only)
+    """
+    # Normalize
+    norm_volume = normalize(volume)
+
+    # Convert each slice to k-space
+    h, w, d = norm_volume.shape
+    recon_volume = np.zeros_like(norm_volume, dtype=np.float32)
+
+    for z in range(d):
+        kspace = fft2c(norm_volume[:, :, z])
+        recon = np.abs(ifft2c(kspace))  # magnitude reconstruction
+        recon_volume[:, :, z] = recon
+
+    return recon_volume
